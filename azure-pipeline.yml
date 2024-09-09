@@ -1,0 +1,28 @@
+stages:
+  - stage: "QA"
+    jobs:
+      - job: "${{parameters.environment}}_run_regression_tests"
+        displayName: "Run Regression Tests"
+        pool:
+          name: $[ variables['poolName'] ]
+        strategy:
+          parallel: $[ variables['numberOfAgents'] ]
+        steps:
+          - pwsh: |
+              $index = $(System.JobPositionInPhase) - 1
+              echo "##vso[task.setvariable variable=index;isOutput=true]$index"
+            name: index
+            displayName: "Get Job Index"
+
+          - pwsh: |
+              npm ci --legacy-peer-deps
+            workingDirectory: "$(Build.Repository.LocalPath)"
+            displayName: "Install packages"
+
+          - pwsh: |
+              npm run test -- --env split=true
+            workingDirectory: "$(Build.Repository.LocalPath)/${{ parameters.testFolder }}"
+            displayName: "Execute tests"
+            env:
+              SPLIT: $[ variables['numberOfAgents'] ]
+              SPLIT_INDEX: $(index.index)
